@@ -72,6 +72,8 @@ class TinyBardCharRnnTrainer:
             print(f"EPOCH {epoch_idx + 1}")
             print("=" * 50)
 
+            total_loss = 0
+            loss_steps = 0
             for batch_idx, sample in enumerate(dataloader):
                 inputs, targets = sample
                 inputs = inputs.to(self.device)
@@ -89,6 +91,9 @@ class TinyBardCharRnnTrainer:
                 self.optimizer.step()
                 step_count += 1
 
+                total_loss += loss.item()
+                loss_steps += 1
+
                 if self.args.save_steps > 0 and (
                     step_count % self.args.save_steps == 0
                     or (batch_idx + 1) == len(dataloader)
@@ -96,7 +101,12 @@ class TinyBardCharRnnTrainer:
                     n = len(self.train_dataset)
                     cur = min((batch_idx + 1) * self.args.train_batch_size, n)
                     width = len(str(n))
-                    print(f"[{cur:>{width}d}/{n}] loss={loss.item():.6f}")
+
+                    avg_loss = total_loss / loss_steps
+                    loss_steps = 0
+                    total_loss = 0
+
+                    print(f"[{cur:>{width}d}/{n}] avg_loss={avg_loss:.6f}")
 
                     self.save_checkpoint(step_count)
 
