@@ -70,19 +70,24 @@ class TinyBardCharRnnModel(nn.Module):
                 next_id = torch.argmax(probs, dim=0).unsqueeze(0)
 
             generated_ids = torch.cat([generated_ids, next_id], dim=0)
+            model_input = torch.LongTensor([next_id])
             hidden = hidden.detach()
 
         return generated_ids
 
     @staticmethod
     def from_pretrained(pretrained_model_path: str | os.PathLike):
+        device = (
+            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        )
+
         model_folder = pathlib.Path(pretrained_model_path).resolve()
         model_file = model_folder / "model.pth"
 
         config = TinyBardCharRnnConfig.from_pretrained(model_folder)
         model = TinyBardCharRnnModel(config)
 
-        model_state_dict = torch.load(model_file)
+        model_state_dict = torch.load(model_file, map_location=device)
         model.load_state_dict(model_state_dict)
 
         return model
