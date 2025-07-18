@@ -86,9 +86,9 @@ class TinyBardCharRnnTrainer:
 
                 self.optimizer.step()
 
-                if (
-                    self.args.save_steps > 0
-                    and (batch_idx + 1) % self.args.save_steps == 0
+                if self.args.save_steps > 0 and (
+                    (batch_idx + 1) % self.args.save_steps == 0
+                    or batch_idx + 1 == len(dataloader)
                 ):
                     n = len(self.train_dataset)
                     cur = (batch_idx + 1) * self.args.train_batch_size
