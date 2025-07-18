@@ -66,6 +66,7 @@ class TinyBardCharRnnTrainer:
         )
 
         self.model.train()
+        step_count = 0
         for epoch_idx in range(self.args.num_train_epochs):
             print(f"EPOCH {epoch_idx + 1}")
             print("=" * 50)
@@ -85,17 +86,18 @@ class TinyBardCharRnnTrainer:
                 loss.backward()
 
                 self.optimizer.step()
+                step_count += 1
 
                 if self.args.save_steps > 0 and (
-                    (batch_idx + 1) % self.args.save_steps == 0
-                    or batch_idx + 1 == len(dataloader)
+                    step_count % self.args.save_steps == 0
+                    or step_count == len(dataloader)
                 ):
                     n = len(self.train_dataset)
                     cur = (batch_idx + 1) * self.args.train_batch_size
                     width = len(str(n))
                     print(f"[{cur:>{width}d}/{n}] loss={loss.item():.6f}")
 
-                    self.save_checkpoint(batch_idx + 1)
+                    self.save_checkpoint(step_count)
 
     def save_checkpoint(self, step):
         folder_name = f"checkpoint-{step}"
