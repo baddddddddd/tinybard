@@ -3,6 +3,7 @@ import pathlib
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .tinybard_char_rnn_config import TinyBardCharRnnConfig
 
@@ -51,6 +52,28 @@ class TinyBardCharRnnModel(nn.Module):
 
         return self.module(input_ids, hidden)
 
+    @torch.no_grad()
+    def generate(self, input_ids, max_length: int = 100, temperature: float = 1.0):
+        generated_ids = input_ids
+        hidden = None
+
+        model_input = input_ids
+        for _ in range(max_length):
+            logits, hidden = self(model_input, hidden)
+            if temperature > 0.0:
+                logits = logits[-1] / temperature
+                probs = F.softmax(logits, dim=0)
+                next_id = torch.multinomial(probs, num_samples=1)
+            else:
+                logits = logits[-1]
+                probs = F.softmax(logits, dim=0)
+                next_id = torch.argmax(probs, dim=0).unsqueeze(0)
+
+            generated_ids = torch.cat([generated_ids, next_id], dim=0)
+            hidden = hidden.detach()
+
+        return generated_ids
+
     @staticmethod
     def from_pretrained(pretrained_model_path: str | os.PathLike):
         model_folder = pathlib.Path(pretrained_model_path).resolve()
@@ -73,6 +96,3 @@ class TinyBardCharRnnModel(nn.Module):
         torch.save(self.state_dict(), model_path)
 
         self.config.save_pretrained(save_folder)
-
-    def generate(self, text: str):
-        pass
