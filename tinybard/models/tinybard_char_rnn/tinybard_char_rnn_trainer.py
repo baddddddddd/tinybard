@@ -1,3 +1,4 @@
+import pathlib
 import os
 
 import torch
@@ -19,13 +20,15 @@ class TinyBardCharRnnTrainingArguments:
         train_batch_size: int = 1,
         eval_batch_size: int = 1,
         weight_decay: float = 1e-5,
+        save_steps: int = 0,
     ):
-        self.output_dir = output_dir
+        self.output_dir = pathlib.Path(output_dir).resolve()
         self.learning_rate = learning_rate
         self.num_train_epochs = num_train_epochs
         self.train_batch_size = train_batch_size
         self.eval_batch_size = eval_batch_size
         self.weight_decay = weight_decay
+        self.save_steps = save_steps
 
 
 class TinyBardCharRnnTrainer:
@@ -51,6 +54,8 @@ class TinyBardCharRnnTrainer:
             model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
         )
         self.criterion = nn.CrossEntropyLoss()
+
+        os.makedirs(args.output_dir, exist_ok=True)
 
     def train(self):
         print(f"Using device: {self.device}")
@@ -81,8 +86,25 @@ class TinyBardCharRnnTrainer:
 
                 self.optimizer.step()
 
-                if batch_idx % 10 == 0:
+                if (
+                    self.args.save_steps > 0
+                    and (batch_idx + 1) % self.args.save_steps == 0
+                ):
                     n = len(self.train_dataset)
                     cur = (batch_idx + 1) * self.args.train_batch_size
                     width = len(str(n))
                     print(f"[{cur:>{width}d}/{n}] loss={loss.item():.6f}")
+
+                    self.save_checkpoint(batch_idx + 1)
+
+    def save_checkpoint(self, step):
+        folder_name = f"checkpoint-{step}"
+        folder_path = self.args.output_dir / folder_name
+
+        os.makedirs(folder_path, exist_ok=False)
+
+        model_path = folder_path / "model.pth"
+        optimizer_path = folder_path / "checkpoint.pth"
+
+        torch.save(self.model.state_dict(), model_path)
+        torch.save(self.optimizer.state_dict(), optimizer_path)
