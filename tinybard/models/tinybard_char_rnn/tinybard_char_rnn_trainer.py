@@ -1,3 +1,4 @@
+import json
 import pathlib
 import os
 
@@ -43,6 +44,7 @@ class TinyBardCharRnnTrainer:
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         )
+        print(f"Using device: {self.device}")
 
         self.model = model.to(self.device)
         self.args = args
@@ -57,8 +59,28 @@ class TinyBardCharRnnTrainer:
 
         os.makedirs(args.output_dir, exist_ok=True)
 
-    def train(self):
-        print(f"Using device: {self.device}")
+    def train(self, resume_from_checkpoint: str | os.PathLike | None = None):
+        if resume_from_checkpoint:
+            checkpoint_folder = pathlib.Path(resume_from_checkpoint).resolve()
+            self.model = TinyBardCharRnnModel.from_pretrained(checkpoint_folder).to(
+                self.device
+            )
+
+            optimizer_file = checkpoint_folder / "optimizer.pth"
+            self.optimizer.load_state_dict(
+                torch.load(optimizer_file, map_location=self.device)
+            )
+
+            trainer_state_file = checkpoint_folder / "trainer_state.json"
+            with open(trainer_state_file, "r") as f:
+                json_string = f.read()
+                trainer_state_dict = json.loads(json_string)
+
+            start_epoch = trainer_state_dict["epoch_idx"]
+            step_count = trainer_state_dict["optimizer_steps"]
+        else:
+            start_epoch = 0
+            step_count = 0
 
         dataloader = DataLoader(
             self.train_dataset,
@@ -67,8 +89,7 @@ class TinyBardCharRnnTrainer:
         )
 
         self.model.train()
-        step_count = 0
-        for epoch_idx in range(self.args.num_train_epochs):
+        for epoch_idx in range(start_epoch, self.args.num_train_epochs):
             print(f"EPOCH {epoch_idx + 1}")
             print("=" * 50)
 
@@ -108,16 +129,25 @@ class TinyBardCharRnnTrainer:
 
                     print(f"[{cur:>{width}d}/{n}] avg_loss={avg_loss:.6f}")
 
-                    self.save_checkpoint(step_count)
+                    self.save_checkpoint(step_count, epoch_idx)
 
-    def save_checkpoint(self, step):
+    def save_checkpoint(self, step, epoch_idx):
         folder_name = f"checkpoint-{step}"
         folder_path = self.args.output_dir / folder_name
 
         os.makedirs(folder_path, exist_ok=True)
 
-        model_path = folder_path / "model.pth"
-        optimizer_path = folder_path / "checkpoint.pth"
+        self.model.save_pretrained(folder_path)
 
-        torch.save(self.model.state_dict(), model_path)
-        torch.save(self.optimizer.state_dict(), optimizer_path)
+        optimizer_file = folder_path / "optimizer.pth"
+        torch.save(self.optimizer.state_dict(), optimizer_file)
+
+        trainer_state_dict = {
+            "optimizer_steps": step,
+            "epoch_idx": epoch_idx,
+        }
+
+        json_string = json.dumps(trainer_state_dict)
+        trainer_state_file = folder_path / "trainer_state.json"
+        with open(trainer_state_file, "w") as f:
+            f.write(json_string)

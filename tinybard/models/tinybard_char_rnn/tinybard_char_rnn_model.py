@@ -1,3 +1,6 @@
+import os
+import pathlib
+
 import torch
 import torch.nn as nn
 
@@ -32,6 +35,7 @@ class TinyBardCharRnnModel(nn.Module):
     def __init__(self, config: TinyBardCharRnnConfig):
         super().__init__()
 
+        self.config = config
         self.module = TinyBardCharRnnModule(
             vocab_size=config.vocab_size,
             embedding_dim=config.embedding_dim,
@@ -46,6 +50,29 @@ class TinyBardCharRnnModel(nn.Module):
         ), f"Expected input_ids dtype to be torch.int64, got: {input_ids.dtype}"
 
         return self.module(input_ids, hidden)
+
+    @staticmethod
+    def from_pretrained(pretrained_model_path: str | os.PathLike):
+        model_folder = pathlib.Path(pretrained_model_path).resolve()
+        model_file = model_folder / "model.pth"
+
+        config = TinyBardCharRnnConfig.from_pretrained(model_folder)
+        model = TinyBardCharRnnModel(config)
+
+        model_state_dict = torch.load(model_file)
+        model.load_state_dict(model_state_dict)
+
+        return model
+
+    def save_pretrained(self, save_directory: str | os.PathLike):
+        save_folder = pathlib.Path(save_directory).resolve()
+        model_path = save_folder / "model.pth"
+
+        os.makedirs(save_folder, exist_ok=True)
+
+        torch.save(self.state_dict(), model_path)
+
+        self.config.save_pretrained(save_folder)
 
     def generate(self, text: str):
         pass
