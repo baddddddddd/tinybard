@@ -101,7 +101,7 @@ class TinyBardCharRnnTrainer:
         folder_name = f"checkpoint-{step}"
         folder_path = self.args.output_dir / folder_name
 
-        os.makedirs(folder_path, exist_ok=False)
+        os.makedirs(folder_path, exist_ok=True)
 
         model_path = folder_path / "model.pth"
         optimizer_path = folder_path / "checkpoint.pth"
