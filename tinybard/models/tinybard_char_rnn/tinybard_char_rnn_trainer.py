@@ -94,7 +94,7 @@ class TinyBardCharRnnTrainer:
                     or (batch_idx + 1) == len(dataloader)
                 ):
                     n = len(self.train_dataset)
-                    cur = (batch_idx + 1) * self.args.train_batch_size
+                    cur = min((batch_idx + 1) * self.args.train_batch_size, n)
                     width = len(str(n))
                     print(f"[{cur:>{width}d}/{n}] loss={loss.item():.6f}")
 
