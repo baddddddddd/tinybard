@@ -63,6 +63,7 @@ class TinyBardCharRnnTrainer:
         dataloader = DataLoader(
             self.train_dataset,
             batch_size=self.args.train_batch_size,
+            shuffle=True,
         )
 
         self.model.train()
@@ -90,7 +91,7 @@ class TinyBardCharRnnTrainer:
 
                 if self.args.save_steps > 0 and (
                     step_count % self.args.save_steps == 0
-                    or step_count == len(dataloader)
+                    or (batch_idx + 1) == len(dataloader)
                 ):
                     n = len(self.train_dataset)
                     cur = (batch_idx + 1) * self.args.train_batch_size
