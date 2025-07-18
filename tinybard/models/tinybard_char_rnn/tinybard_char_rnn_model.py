@@ -1,0 +1,47 @@
+import torch
+import torch.nn as nn
+
+from .tinybard_char_rnn_config import TinyBardCharRnnConfig
+
+
+class TinyBardCharRnnModule(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, num_layers):
+        super().__init__()
+        self.embed = nn.Embedding(
+            num_embeddings=vocab_size, embedding_dim=embedding_dim
+        )
+        self.rnn = nn.GRU(
+            input_size=embedding_dim,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+        )
+        self.fc = nn.Linear(in_features=hidden_size, out_features=vocab_size)
+
+    def forward(self, input_ids, hidden=None):
+        inputs = self.embed(input_ids)
+        outputs, hidden = self.rnn(inputs, hidden)
+        logits = self.fc(outputs)
+        return logits, hidden
+
+
+class TinyBardCharRnnModel(nn.Module):
+    def __init__(self, config: TinyBardCharRnnConfig):
+        super().__init__()
+
+        self.module = TinyBardCharRnnModule(
+            vocab_size=config.vocab_size,
+            embedding_dim=config.embedding_dim,
+            hidden_size=config.hidden_size,
+            num_layers=config.num_layers,
+        )
+
+    def __call__(self, input_ids: torch.Tensor, hidden: torch.Tensor | None = None):
+        assert (
+            input_ids.dtype == torch.int64
+        ), f"Expected input_ids dtype to be torch.int64, got: {input_ids.dtype}"
+
+        return self.module(input_ids, hidden)
+
+    def generate(self, text: str):
+        pass
