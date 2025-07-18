@@ -60,6 +60,7 @@ class TinyBardCharRnnTrainer:
             batch_size=self.args.train_batch_size,
         )
 
+        self.model.train()
         for epoch_idx in range(self.args.num_train_epochs):
             print(f"EPOCH {epoch_idx + 1}")
             print("=" * 50)
