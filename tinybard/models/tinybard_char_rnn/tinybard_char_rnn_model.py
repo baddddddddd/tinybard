@@ -5,7 +5,9 @@ from .tinybard_char_rnn_config import TinyBardCharRnnConfig
 
 
 class TinyBardCharRnnModule(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_size, num_layers):
+    def __init__(
+        self, vocab_size, embedding_dim, hidden_size, num_layers, dropout: float = 0.0
+    ):
         super().__init__()
         self.embed = nn.Embedding(
             num_embeddings=vocab_size, embedding_dim=embedding_dim
@@ -15,6 +17,7 @@ class TinyBardCharRnnModule(nn.Module):
             hidden_size=hidden_size,
             num_layers=num_layers,
             batch_first=True,
+            dropout=dropout,
         )
         self.fc = nn.Linear(in_features=hidden_size, out_features=vocab_size)
 
@@ -34,6 +37,7 @@ class TinyBardCharRnnModel(nn.Module):
             embedding_dim=config.embedding_dim,
             hidden_size=config.hidden_size,
             num_layers=config.num_layers,
+            dropout=config.dropout,
         )
 
     def __call__(self, input_ids: torch.Tensor, hidden: torch.Tensor | None = None):
