@@ -45,7 +45,7 @@ class TinyBardCharRnnModel(nn.Module):
             dropout=config.dropout,
         )
 
-    def __call__(self, input_ids: torch.Tensor, hidden: torch.Tensor | None = None):
+    def forward(self, input_ids: torch.Tensor, hidden: torch.Tensor | None = None):
         assert (
             input_ids.dtype == torch.int64
         ), f"Expected input_ids dtype to be torch.int64, got: {input_ids.dtype}"
@@ -53,33 +53,33 @@ class TinyBardCharRnnModel(nn.Module):
         return self.module(input_ids, hidden)
 
     @torch.no_grad()
-    def generate(self, input_ids, max_length: int = 100, temperature: float = 1.0):
-        generated_ids = input_ids
+    def generate(self, input_ids, max_new_tokens: int = 2048, temperature: float = 0.8):
+        generated = [input_ids]
         hidden = None
 
         model_input = input_ids
-        for _ in range(max_length):
+        for _ in range(max_new_tokens):
             logits, hidden = self(model_input, hidden)
-            if temperature > 0.0:
-                logits = logits[-1] / temperature
-                probs = F.softmax(logits, dim=0)
-                next_id = torch.multinomial(probs, num_samples=1)
-            else:
-                logits = logits[-1]
-                probs = F.softmax(logits, dim=0)
-                next_id = torch.argmax(probs, dim=0).unsqueeze(0)
+            logits = logits[-1, :]
 
-            generated_ids = torch.cat([generated_ids, next_id], dim=0)
-            model_input = torch.LongTensor([next_id])
+            if temperature > 0.0:
+                probs = F.softmax(logits / temperature, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1)
+            else:
+                next_token = torch.argmax(logits, dim=-1, keepdim=True)
+
+            generated.append(next_token)
+            model_input = next_token
             hidden = hidden.detach()
 
-        return generated_ids
+        return torch.cat(generated)
 
     @staticmethod
-    def from_pretrained(pretrained_model_path: str | os.PathLike):
-        device = (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
+    def from_pretrained(
+        pretrained_model_path: str | os.PathLike, device_map: str = "auto"
+    ):
+        if device_map == "auto":
+            device_map = "cuda" if torch.cuda.is_available() else "cpu"
 
         model_folder = pathlib.Path(pretrained_model_path).resolve()
         model_file = model_folder / "model.pth"
@@ -87,8 +87,9 @@ class TinyBardCharRnnModel(nn.Module):
         config = TinyBardCharRnnConfig.from_pretrained(model_folder)
         model = TinyBardCharRnnModel(config)
 
-        model_state_dict = torch.load(model_file, map_location=device)
+        model_state_dict = torch.load(model_file, map_location=device_map)
         model.load_state_dict(model_state_dict)
+        model.to(device_map)
 
         return model
 
