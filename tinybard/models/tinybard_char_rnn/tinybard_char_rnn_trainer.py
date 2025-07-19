@@ -2,6 +2,7 @@ import json
 import pathlib
 import os
 import random
+import re
 
 import numpy as np
 import torch
@@ -67,8 +68,23 @@ class TinyBardCharRnnTrainer:
 
         os.makedirs(args.output_dir, exist_ok=True)
 
-    def train(self, resume_from_checkpoint: str | os.PathLike | None = None):
-        if resume_from_checkpoint:
+    def train(self, resume_from_checkpoint: bool | str | os.PathLike | None = None):
+        if resume_from_checkpoint is not None:
+            if isinstance(resume_from_checkpoint, bool):
+                files = os.listdir(self.args.output_dir)
+                checkpoint_folders = [
+                    f for f in files if re.match(r"^checkpoint-[\d]+$", f)
+                ]
+                checkpoint_nums = [
+                    int(m.group(1))
+                    for f in checkpoint_folders
+                    if (m := re.search(r"([\d]+)", f))
+                ]
+                latest_checkpoint = max(checkpoint_nums)
+                resume_from_checkpoint = (
+                    self.args.output_dir / f"checkpoint-{latest_checkpoint}"
+                )
+
             checkpoint_folder = pathlib.Path(resume_from_checkpoint).resolve()
             self.model = TinyBardCharRnnModel.from_pretrained(checkpoint_folder).to(
                 self.device
