@@ -36,9 +36,9 @@ class TinyBardCharRnnTrainer:
     def __init__(
         self,
         model: TinyBardCharRnnModel,
+        tokenizer: TinyBardCharRnnTokenizer,
         args: TinyBardCharRnnTrainingArguments,
         train_dataset: Dataset | IterableDataset,
-        processing_class: TinyBardCharRnnTokenizer,
         eval_dataset: Dataset | IterableDataset | None = None,
     ):
         self.device = (
@@ -48,7 +48,7 @@ class TinyBardCharRnnTrainer:
 
         self.model = model.to(self.device)
         self.args = args
-        self.processing_class = processing_class
+        self.tokenizer = tokenizer
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
 
