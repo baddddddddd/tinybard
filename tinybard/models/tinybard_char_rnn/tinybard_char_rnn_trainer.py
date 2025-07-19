@@ -68,52 +68,61 @@ class TinyBardCharRnnTrainer:
 
         os.makedirs(args.output_dir, exist_ok=True)
 
+    def resume_checkpoint(self, resume_from_checkpoint):
+        if isinstance(resume_from_checkpoint, bool):
+            files = os.listdir(self.args.output_dir)
+            checkpoint_folders = [
+                f for f in files if re.match(r"^checkpoint-[\d]+$", f)
+            ]
+
+            if len(checkpoint_folders) == 0:
+                return 0, 0, 0
+
+            checkpoint_nums = [
+                int(m.group(1))
+                for f in checkpoint_folders
+                if (m := re.search(r"([\d]+)", f))
+            ]
+
+            latest_checkpoint = max(checkpoint_nums)
+            resume_from_checkpoint = (
+                self.args.output_dir / f"checkpoint-{latest_checkpoint}"
+            )
+
+        checkpoint_folder = pathlib.Path(resume_from_checkpoint).resolve()
+        self.model = TinyBardCharRnnModel.from_pretrained(checkpoint_folder).to(
+            self.device
+        )
+
+        optimizer_file = checkpoint_folder / "optimizer.pth"
+        self.optimizer.load_state_dict(
+            torch.load(optimizer_file, map_location=self.device)
+        )
+
+        trainer_state_file = checkpoint_folder / "trainer_state.pth"
+        trainer_state = torch.load(trainer_state_file, weights_only=False)
+
+        torch.set_rng_state(trainer_state["torch_rng_state"])
+        torch.cuda.set_rng_state_all(trainer_state["cuda_rng_state"])
+        np.random.set_state(trainer_state["numpy_rng_state"])
+        random.setstate(trainer_state["python_rng_state"])
+
+        if trainer_state["dataloader_state"] and hasattr(
+            self.dataloader.sampler, "load_state_dict"
+        ):
+            self.dataloader.sampler.load_state_dict(trainer_state["dataloader_state"])
+
+        start_epoch = trainer_state["epoch"]
+        resume_batch_idx = trainer_state["batch_idx"]
+        step_count = trainer_state["steps"]
+
+        return start_epoch, resume_batch_idx, step_count
+
     def train(self, resume_from_checkpoint: bool | str | os.PathLike | None = None):
         if resume_from_checkpoint is not None:
-            if isinstance(resume_from_checkpoint, bool):
-                files = os.listdir(self.args.output_dir)
-                checkpoint_folders = [
-                    f for f in files if re.match(r"^checkpoint-[\d]+$", f)
-                ]
-                checkpoint_nums = [
-                    int(m.group(1))
-                    for f in checkpoint_folders
-                    if (m := re.search(r"([\d]+)", f))
-                ]
-                latest_checkpoint = max(checkpoint_nums)
-                resume_from_checkpoint = (
-                    self.args.output_dir / f"checkpoint-{latest_checkpoint}"
-                )
-
-            checkpoint_folder = pathlib.Path(resume_from_checkpoint).resolve()
-            self.model = TinyBardCharRnnModel.from_pretrained(checkpoint_folder).to(
-                self.device
+            start_epoch, resume_batch_idx, step_count = self.resume_checkpoint(
+                resume_from_checkpoint
             )
-
-            optimizer_file = checkpoint_folder / "optimizer.pth"
-            self.optimizer.load_state_dict(
-                torch.load(optimizer_file, map_location=self.device)
-            )
-
-            trainer_state_file = checkpoint_folder / "trainer_state.pth"
-            trainer_state = torch.load(trainer_state_file, weights_only=False)
-
-            torch.set_rng_state(trainer_state["torch_rng_state"])
-            torch.cuda.set_rng_state_all(trainer_state["cuda_rng_state"])
-            np.random.set_state(trainer_state["numpy_rng_state"])
-            random.setstate(trainer_state["python_rng_state"])
-
-            if trainer_state["dataloader_state"] and hasattr(
-                self.dataloader.sampler, "load_state_dict"
-            ):
-                self.dataloader.sampler.load_state_dict(
-                    trainer_state["dataloader_state"]
-                )
-
-            start_epoch = trainer_state["epoch"]
-            resume_batch_idx = trainer_state["batch_idx"] + 1
-            step_count = trainer_state["steps"]
-
         else:
             start_epoch = 0
             resume_batch_idx = 0
@@ -165,7 +174,7 @@ class TinyBardCharRnnTrainer:
 
                     print(f"[{cur:>{width}d}/{n}] avg_loss={avg_loss:.6f}")
 
-                    self.save_checkpoint(epoch_idx, batch_idx, step_count)
+                    self.save_checkpoint(epoch_idx, batch_idx + 1, step_count)
 
     def get_state_dict(self, epoch, batch_idx, step):
         state_dict = {
