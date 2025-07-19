@@ -53,9 +53,18 @@ class TinyBardCharRnnModel(nn.Module):
         return self.module(input_ids, hidden)
 
     @torch.no_grad()
-    def generate(self, input_ids, max_new_tokens: int = 2048, temperature: float = 0.8):
+    def generate(
+        self,
+        input_ids,
+        max_new_tokens: int = 2048,
+        temperature: float = 0.8,
+        streamer=None,
+    ):
         generated = [input_ids]
         hidden = None
+
+        if streamer is not None:
+            streamer.put(input_ids)
 
         model_input = input_ids
         for _ in range(max_new_tokens):
@@ -71,6 +80,12 @@ class TinyBardCharRnnModel(nn.Module):
             generated.append(next_token)
             model_input = next_token
             hidden = hidden.detach()
+
+            if streamer is not None:
+                streamer.put(next_token)
+
+        if streamer is not None:
+            streamer.end()
 
         return torch.cat(generated)
 
