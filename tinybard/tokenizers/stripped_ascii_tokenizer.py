@@ -16,6 +16,7 @@ class StrippedAsciiTokenizer:
             + self.eos_token
         )
         self.vocab = dict(zip(self.charset, range(len(self.charset))))
+        self.eos_token_id = self.vocab[self.eos_token]
 
         pattern = "|".join(re.escape(c) for c in self.charset)
         self.re = re.compile(pattern)
