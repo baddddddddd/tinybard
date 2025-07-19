@@ -1,6 +1,8 @@
 import re
 import string
 
+import torch
+
 
 class StrippedAsciiTokenizer:
     def __init__(self):
@@ -21,13 +23,18 @@ class StrippedAsciiTokenizer:
         ids = list(map(lambda token: self.vocab[token], tokens))
         return ids
 
-    def encode(self, text: str) -> list[int]:
+    def encode(
+        self, text: str, return_tensors: str | None = None
+    ) -> list[int] | torch.Tensor:
         tokens = self.tokenize(text)
         ids = self.convert_tokens_to_ids(tokens)
-        return ids
+        if return_tensors == "pt":
+            return torch.LongTensor(ids)
+        else:
+            return ids
 
     def convert_ids_to_tokens(self, ids: list[int]) -> list[str]:
-        tokens = list(map(lambda id: self.charset[id], ids))
+        tokens = list(map(lambda id_: self.charset[id_], ids))
         return tokens
 
     def convert_tokens_to_string(self, tokens: list[str]) -> str:
