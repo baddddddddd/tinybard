@@ -58,6 +58,7 @@ class TinyBardCharRnnModel(nn.Module):
         input_ids,
         max_new_tokens: int = 2048,
         temperature: float = 0.8,
+        eos_token_id: int | None = None,
         streamer=None,
     ):
         generated = [input_ids]
@@ -80,6 +81,9 @@ class TinyBardCharRnnModel(nn.Module):
             generated.append(next_token)
             model_input = next_token
             hidden = hidden.detach()
+
+            if eos_token_id is not None and next_token == eos_token_id:
+                break
 
             if streamer is not None:
                 streamer.put(next_token)
