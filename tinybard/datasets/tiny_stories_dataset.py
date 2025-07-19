@@ -1,3 +1,5 @@
+import os
+
 import torch
 from datasets import load_dataset
 from torch.utils.data import Dataset
@@ -16,7 +18,10 @@ class TinyStoriesDataset(Dataset):
             token_ids = tokenizer.encode(text)
             return {"input_ids": token_ids}
 
-        self.dataset = raw_dataset.map(encode, remove_columns=["text"])
+        num_proc = os.cpu_count() - 1
+        self.dataset = raw_dataset.map(
+            encode, remove_columns=["text"], num_proc=num_proc
+        )
 
         self.idx_to_doc = []
         for row_idx, row in enumerate(self.dataset):
