@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 
 from ..base_model import BaseModel
-from .tinyfriend_char_rnn_config import TinyFriendCharRnnConfig
+from .tinyfriend_rnn_config import TinyFriendRnnConfig
 
 
-class TinyFriendCharRnnModel(BaseModel):
-    def __init__(self, config: TinyFriendCharRnnConfig):
+class TinyFriendRnnModel(BaseModel):
+    def __init__(self, config: TinyFriendRnnConfig):
         super().__init__()
         self.embed = nn.Embedding(
             num_embeddings=config.vocab_size, embedding_dim=config.embedding_dim

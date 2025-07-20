@@ -1,2 +1,0 @@
-from .tinyfriend_char_rnn_config import TinyFriendCharRnnConfig
-from .tinyfriend_char_rnn_model import TinyFriendCharRnnModel

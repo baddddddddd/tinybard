@@ -1,0 +1,2 @@
+from .tinyfriend_rnn_config import TinyFriendRnnConfig
+from .tinyfriend_rnn_model import TinyFriendRnnModel

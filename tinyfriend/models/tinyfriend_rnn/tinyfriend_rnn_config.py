@@ -1,7 +1,7 @@
 from ..base_config import BaseConfig
 
 
-class TinyFriendCharRnnConfig(BaseConfig):
+class TinyFriendRnnConfig(BaseConfig):
     def __init__(
         self,
         architecture: str,
