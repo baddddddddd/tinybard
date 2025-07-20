@@ -42,7 +42,15 @@ class CausalLmTrainer(BaseTrainer):
     def train(self, resume_from_checkpoint: str | bool = False):
         self.model.train()
 
+        dataset_size = len(self.train_dataset)
+        counter_width = len(str(dataset_size))
+
+        optimizer_steps = 0
+        total_loss = 0.0
         for epoch in range(self.args.num_train_epochs):
+            print(f"EPOCH {epoch + 1}")
+            print(f"=" * 75)
+
             for batch_idx, (inputs, targets) in enumerate(self.dataloader):
                 inputs = inputs.to(self.device)
                 targets = inputs.to(self.device)
@@ -60,3 +68,29 @@ class CausalLmTrainer(BaseTrainer):
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
                 self.optimizer.step()
+                optimizer_steps += 1
+
+                total_loss += loss.item()
+
+                if (
+                    self.args.save_steps is not None
+                    and optimizer_steps % self.args.save_steps == 0
+                ):
+                    avg_loss = total_loss / self.args.train_batch_size
+                    processed = (batch_idx + 1) * self.args.train_batch_size
+                    batch_progress = f"[{processed:>{counter_width}d}/{dataset_size}]"
+
+                    avg_loss_log = f"{avg_loss:.6f}"
+                    steps_log = f"{optimizer_steps}"
+
+                    total_loss = 0.0
+                    self.log(
+                        batch_progress, avg_loss=avg_loss_log, steps=optimizer_steps
+                    )
+
+    def log(self, *args, **kwargs):
+        args_string = " ".join(args)
+        kwargs_string = " ".join([f"{k}={v}" for k, v in kwargs.items()])
+
+        log_string = f"{args_string} {kwargs_string}"
+        print(log_string)
