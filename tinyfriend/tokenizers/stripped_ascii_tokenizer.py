@@ -7,7 +7,7 @@ from .base_tokenizer import BaseTokenizer
 
 class StrippedAsciiTokenizer(BaseTokenizer):
     def __init__(self):
-        self.whitespace = " " + "\n"
+        self.whitespace = " \n\t"
         self.eos_token = "\x00"
         self.charset = (
             string.digits
