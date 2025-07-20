@@ -9,12 +9,14 @@ class StrippedAsciiTokenizer(BaseTokenizer):
     def __init__(self):
         self.whitespace = " \n\t"
         self.eos_token = "\x00"
+        self.pad_token = "\x01"
         self.charset = (
             string.digits
             + string.ascii_letters
             + string.punctuation
             + self.whitespace
             + self.eos_token
+            + self.pad_token
         )
         self.vocab = dict(zip(self.charset, range(len(self.charset))))
 
