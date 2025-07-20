@@ -73,9 +73,7 @@ class BaseTokenizer:
         s = self.convert_tokens_to_string(tokens)
         return s
 
-    def batch_decode(
-        self, sequences: list[list[int]] | list[torch.Tensor]
-    ) -> list[str]:
+    def batch_decode(self, sequences: list[list[int] | torch.Tensor]) -> list[str]:
         decoded = [self.decode(seq) for seq in sequences]
         return decoded
 
