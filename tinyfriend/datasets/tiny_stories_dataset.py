@@ -25,8 +25,14 @@ class TinyStoriesDataset(torch.utils.data.Dataset):
 
         def encode(example):
             sequences = [text + tokenizer.eos_token for text in example["text"]]
-            token_ids = tokenizer(sequences)
-            return {"input_ids": token_ids}
+            encoded = tokenizer(sequences)
+            for i in range(len(encoded)):
+                rem = (len(encoded[i]) - chunk_size) % stride
+                if rem > 1:
+                    pad_size = chunk_size - rem + 1
+                    encoded[i] += [tokenizer.pad_token_id] * pad_size
+
+            return {"input_ids": encoded}
 
         num_proc = os.cpu_count()
         self.dataset = raw_dataset.map(
@@ -39,18 +45,9 @@ class TinyStoriesDataset(torch.utils.data.Dataset):
         self.idx_to_doc = []
         for row_idx in range(len(self.dataset)):
             token_ids = self.dataset[row_idx]["input_ids"]
-            rem = (len(token_ids) - chunk_size) % stride
-            if rem > 1:
-                pad_size = chunk_size - rem + 1
-                token_ids += [tokenizer.pad_token_id] * pad_size
-                self.dataset[row_idx]["input_ids"] = token_ids
-
             for start_idx in range(0, len(token_ids) - chunk_size, stride):
                 doc = (row_idx, start_idx)
                 self.idx_to_doc.append(doc)
-
-                ids = token_ids[start_idx : start_idx + chunk_size]
-                n_ids = token_ids[start_idx + 1 : start_idx + 1 + chunk_size]
 
     def __len__(self):
         return len(self.idx_to_doc)
