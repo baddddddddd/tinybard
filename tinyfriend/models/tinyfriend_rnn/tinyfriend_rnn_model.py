@@ -5,7 +5,7 @@ from ..base_model import BaseModel
 from .tinyfriend_rnn_config import TinyFriendRnnConfig
 
 
-class TinyFriendRnnModel(BaseModel):
+class TinyFriendRnnModule(nn.Module):
     def __init__(self, config: TinyFriendRnnConfig):
         super().__init__()
         self.embed = nn.Embedding(
@@ -49,3 +49,13 @@ class TinyFriendRnnModel(BaseModel):
         outputs, hidden = self.rnn(inputs, hidden)
         logits = self.fc(outputs)
         return logits, hidden
+
+
+class TinyFriendRnnModel(BaseModel):
+    def __init__(self, config: TinyFriendRnnConfig):
+        super().__init__()
+        self.module = TinyFriendRnnModule(config)
+
+    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        logits, _ = self.module(input_ids)
+        return logits
