@@ -29,7 +29,7 @@ class TinyStoriesDataset(BaseDataset):
             sequences = example["text"]
             encoded = tokenizer(sequences)
             for i in range(len(encoded)):
-                encoded[i] += tokenizer.eos_token_id
+                encoded[i].append(tokenizer.eos_token_id)
 
                 rem = (len(encoded[i]) - chunk_size) % stride
                 if rem > 1:
