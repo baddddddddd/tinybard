@@ -18,6 +18,9 @@ from ..tokenizers import BaseTokenizer
 class CausalLmTrainer(BaseTrainer):
     TRAINER_STATE_FILENAME = "trainer_state.json"
     TRAINING_ARGS_FILENAME = "training_args.bin"
+    OPTIMIZER_FILENAME = "optimizer.pt"
+    SCHEDULER_FILENAME = "scheduler.pt"
+    RNG_STATE_FILENAME = "rng_state.pth"
 
     def __init__(
         self,
@@ -75,6 +78,7 @@ class CausalLmTrainer(BaseTrainer):
 
     def resume_from_folder(self, checkpoint_folder: pathlib.Path):
         self.model = self.model.__class__.from_pretrained(checkpoint_folder)
+        self.load_optimizer(checkpoint_folder)
 
         trainer_state = self.load_trainer_state(checkpoint_folder)
         start_epoch = trainer_state["epoch"]
@@ -166,6 +170,16 @@ class CausalLmTrainer(BaseTrainer):
         with open(save_path, "w") as f:
             f.write(json_string)
 
+    def load_optimizer(self, checkpoint_folder: pathlib.Path):
+        optimizer_file = checkpoint_folder / CausalLmTrainer.OPTIMIZER_FILENAME
+        optimizer_state = torch.load(optimizer_file)
+        self.optimizer.load_state_dict(optimizer_state)
+
+    def save_optimizer(self, save_directory: pathlib.Path):
+        optimizer_state = self.optimizer.state_dict()
+        optimizer_file = save_directory / CausalLmTrainer.OPTIMIZER_FILENAME
+        torch.save(optimizer_state, optimizer_file)
+
     def save_state(self, epoch, batch_idx, optimizer_steps):
         checkpoint_folder = f"checkpoint-{optimizer_steps}"
         save_folder = self.args.output_dir / checkpoint_folder
@@ -175,8 +189,7 @@ class CausalLmTrainer(BaseTrainer):
 
         self.model.save_pretrained(save_directory=save_folder)
         self.save_trainer_state(save_folder, epoch, batch_idx, optimizer_steps)
-
-        # optimizer.pt
+        self.save_optimizer(save_directory=save_folder)
         # scheduler.pt
         # training_args.bin
         # rng_state.pth
