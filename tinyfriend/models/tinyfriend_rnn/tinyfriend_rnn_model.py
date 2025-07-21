@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from ..base_model import BaseModel
 from .tinyfriend_rnn_config import TinyFriendRnnConfig
+from ..base_model import BaseModel
+from ...utils import BaseStreamer
 
 
 class TinyFriendRnnModule(nn.Module):
@@ -64,7 +66,51 @@ class TinyFriendRnnModel(BaseModel):
     def __init__(self, config: TinyFriendRnnConfig):
         super().__init__(config)
         self.module = TinyFriendRnnModule(config)
+        self.config: TinyFriendRnnConfig
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         logits, _ = self.module(input_ids)
         return logits
+
+    @torch.no_grad()
+    def generate(
+        self,
+        input_ids,
+        max_new_tokens: int = 1024,
+        temperature: float = 0.8,
+        streamer: BaseStreamer | None = None,
+    ):
+        generated = [input_ids]
+        hidden = None
+
+        if streamer is not None:
+            streamer.put(input_ids)
+
+        model_input = input_ids
+        for _ in range(max_new_tokens):
+            logits, hidden = self.module(model_input, hidden)
+            logits = logits[-1, :]
+
+            if temperature > 0.0:
+                probs = F.softmax(logits / temperature, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1)
+            else:
+                next_token = torch.argmax(logits, dim=-1, keepdim=True)
+
+            generated.append(next_token)
+            model_input = next_token
+            hidden = hidden.detach()
+
+            if (
+                self.config.eos_token_id is not None
+                and next_token == self.config.eos_token_id
+            ):
+                break
+
+            if streamer is not None:
+                streamer.put(next_token)
+
+        if streamer is not None:
+            streamer.end()
+
+        return torch.cat(generated)
