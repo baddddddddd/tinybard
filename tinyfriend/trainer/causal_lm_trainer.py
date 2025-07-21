@@ -46,7 +46,7 @@ class CausalLmTrainer(BaseTrainer):
         self.optimizer = optim.AdamW(
             model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
         )
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(ignore_index=self.tokenizer.pad_token_id)
 
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -56,38 +56,6 @@ class CausalLmTrainer(BaseTrainer):
         self.model.to(self.device)
 
         os.makedirs(self.args.output_dir, exist_ok=True)
-
-    def get_latest_checkpoint(self):
-        files = os.listdir(self.args.output_dir)
-
-        checkpoints = []
-        for f in files:
-            m = re.fullmatch(r"checkpoint-(\d+)", f)
-            if m:
-                checkpoints.append(int(m.group(1)))
-
-        latest_checkpoint = max(checkpoints, default=0)
-        return latest_checkpoint
-
-    def resume_latest(self):
-        latest_checkpoint = self.get_latest_checkpoint()
-        if latest_checkpoint == 0:
-            return 0, 0, 0
-        else:
-            foldername = f"checkpoint-{latest_checkpoint}"
-            checkpoint_folder = self.args.output_dir / foldername
-            return self.resume_from_folder(checkpoint_folder)
-
-    def resume_from_folder(self, checkpoint_folder: pathlib.Path):
-        self.model = self.model.__class__.from_pretrained(checkpoint_folder)
-        self.load_optimizer(checkpoint_folder)
-        self.load_rng_state(checkpoint_folder)
-
-        trainer_state = self.load_trainer_state(checkpoint_folder)
-        start_epoch = trainer_state["epoch"]
-        start_batch_idx = trainer_state["batch_idx"]
-        optimizer_steps = trainer_state["optimizer_steps"]
-        return start_epoch, start_batch_idx, optimizer_steps
 
     def train(self, resume_from_checkpoint: os.PathLike[str] | bool = False):
         if resume_from_checkpoint:
@@ -151,6 +119,38 @@ class CausalLmTrainer(BaseTrainer):
                     self.log(
                         batch_progress, avg_loss=avg_loss_log, steps=optimizer_steps
                     )
+
+    def get_latest_checkpoint(self):
+        files = os.listdir(self.args.output_dir)
+
+        checkpoints = []
+        for f in files:
+            m = re.fullmatch(r"checkpoint-(\d+)", f)
+            if m:
+                checkpoints.append(int(m.group(1)))
+
+        latest_checkpoint = max(checkpoints, default=0)
+        return latest_checkpoint
+
+    def resume_latest(self):
+        latest_checkpoint = self.get_latest_checkpoint()
+        if latest_checkpoint == 0:
+            return 0, 0, 0
+        else:
+            foldername = f"checkpoint-{latest_checkpoint}"
+            checkpoint_folder = self.args.output_dir / foldername
+            return self.resume_from_folder(checkpoint_folder)
+
+    def resume_from_folder(self, checkpoint_folder: pathlib.Path):
+        self.model = self.model.__class__.from_pretrained(checkpoint_folder)
+        self.load_optimizer(checkpoint_folder)
+        self.load_rng_state(checkpoint_folder)
+
+        trainer_state = self.load_trainer_state(checkpoint_folder)
+        start_epoch = trainer_state["epoch"]
+        start_batch_idx = trainer_state["batch_idx"]
+        optimizer_steps = trainer_state["optimizer_steps"]
+        return start_epoch, start_batch_idx, optimizer_steps
 
     def load_trainer_state(self, checkpoint_folder: pathlib.Path) -> dict:
         json_file = checkpoint_folder / CausalLmTrainer.TRAINER_STATE_FILENAME
