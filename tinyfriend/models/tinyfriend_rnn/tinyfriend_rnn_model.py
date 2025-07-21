@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from .tinyfriend_rnn_config import TinyFriendRnnConfig
 from ..base_model import BaseModel
-from ...utils import BaseStreamer
+from ...utils import BaseStreamer, top_p_sample
 
 
 class TinyFriendRnnModule(nn.Module):
@@ -78,6 +78,7 @@ class TinyFriendRnnModel(BaseModel):
         input_ids,
         max_new_tokens: int = 1024,
         temperature: float = 0.8,
+        top_p: float = 0.9,
         streamer: BaseStreamer | None = None,
     ):
         generated = [input_ids]
@@ -92,18 +93,22 @@ class TinyFriendRnnModel(BaseModel):
             logits = logits[-1, :]
 
             if temperature > 0.0:
-                probs = F.softmax(logits / temperature, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
+                logits /= temperature
+                if top_p > 0.0:
+                    next_token = top_p_sample(logits, p=top_p)
+                else:
+                    probs = F.softmax(logits, dim=-1)
+                    next_token = torch.multinomial(probs, num_samples=1)
             else:
                 next_token = torch.argmax(logits, dim=-1, keepdim=True)
 
             generated.append(next_token)
-            model_input = next_token
+            model_input = next_token.detach()
             hidden = hidden.detach()
 
             if (
                 self.config.eos_token_id is not None
-                and next_token == self.config.eos_token_id
+                and next_token.item() == self.config.eos_token_id
             ):
                 break
 
