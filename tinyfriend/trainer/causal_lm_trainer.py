@@ -1,8 +1,10 @@
 import json
 import os
 import pathlib
+import random
 import re
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -79,6 +81,7 @@ class CausalLmTrainer(BaseTrainer):
     def resume_from_folder(self, checkpoint_folder: pathlib.Path):
         self.model = self.model.__class__.from_pretrained(checkpoint_folder)
         self.load_optimizer(checkpoint_folder)
+        self.load_rng_state(checkpoint_folder)
 
         trainer_state = self.load_trainer_state(checkpoint_folder)
         start_epoch = trainer_state["epoch"]
@@ -112,7 +115,7 @@ class CausalLmTrainer(BaseTrainer):
                     continue
 
                 inputs = inputs.to(self.device)
-                targets = inputs.to(self.device)
+                targets = targets.to(self.device)
 
                 self.optimizer.zero_grad()
 
@@ -137,7 +140,7 @@ class CausalLmTrainer(BaseTrainer):
                 ):
                     self.save_state(epoch, batch_idx, optimizer_steps)
 
-                    avg_loss = total_loss / self.args.train_batch_size
+                    avg_loss = total_loss / self.args.save_steps
                     processed = (batch_idx + 1) * self.args.train_batch_size
                     batch_progress = f"[{processed:>{counter_width}d}/{dataset_size}]"
 
@@ -180,6 +183,36 @@ class CausalLmTrainer(BaseTrainer):
         optimizer_file = save_directory / CausalLmTrainer.OPTIMIZER_FILENAME
         torch.save(optimizer_state, optimizer_file)
 
+    def load_rng_state(self, checkpoint_folder: pathlib.Path):
+        trainer_state_file = checkpoint_folder / CausalLmTrainer.RNG_STATE_FILENAME
+        trainer_state = torch.load(trainer_state_file, weights_only=False)
+
+        torch.set_rng_state(trainer_state["torch_rng_state"])
+        torch.cuda.set_rng_state_all(trainer_state["cuda_rng_state"])
+        np.random.set_state(trainer_state["numpy_rng_state"])
+        random.setstate(trainer_state["python_rng_state"])
+
+        if trainer_state["dataloader_state"] and hasattr(
+            self.dataloader.sampler, "load_state_dict"
+        ):
+            self.dataloader.sampler.load_state_dict(trainer_state["dataloader_state"])
+
+    def save_rng_state(self, save_directory: pathlib.Path):
+        rng_state = {
+            "torch_rng_state": torch.get_rng_state(),
+            "cuda_rng_state": torch.cuda.get_rng_state_all(),
+            "numpy_rng_state": np.random.get_state(),
+            "python_rng_state": random.getstate(),
+            "dataloader_state": (
+                self.dataloader.sampler.state_dict()
+                if hasattr(self.dataloader.sampler, "state_dict")
+                else None
+            ),
+        }
+
+        save_path = save_directory / CausalLmTrainer.RNG_STATE_FILENAME
+        torch.save(rng_state, save_path)
+
     def save_state(self, epoch, batch_idx, optimizer_steps):
         checkpoint_folder = f"checkpoint-{optimizer_steps}"
         save_folder = self.args.output_dir / checkpoint_folder
@@ -190,9 +223,10 @@ class CausalLmTrainer(BaseTrainer):
         self.model.save_pretrained(save_directory=save_folder)
         self.save_trainer_state(save_folder, epoch, batch_idx, optimizer_steps)
         self.save_optimizer(save_directory=save_folder)
+        self.save_rng_state(save_directory=save_folder)
+
         # scheduler.pt
         # training_args.bin
-        # rng_state.pth
 
     def log(self, *args, **kwargs):
         args_string = " ".join(args)
