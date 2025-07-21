@@ -2,11 +2,13 @@ import os
 
 import datasets
 import torch
+from typing import Sized
 
+from .base_dataset import BaseDataset
 from ..tokenizers import BaseTokenizer
 
 
-class TinyStoriesDataset(torch.utils.data.Dataset):
+class TinyStoriesDataset(BaseDataset):
     def __init__(
         self,
         split: str,
