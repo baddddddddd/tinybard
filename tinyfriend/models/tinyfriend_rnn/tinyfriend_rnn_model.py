@@ -8,9 +8,16 @@ from .tinyfriend_rnn_config import TinyFriendRnnConfig
 class TinyFriendRnnModule(nn.Module):
     def __init__(self, config: TinyFriendRnnConfig):
         super().__init__()
-        self.embed = nn.Embedding(
-            num_embeddings=config.vocab_size, embedding_dim=config.embedding_dim
-        )
+        if config.pad_token_id is None:
+            self.embed = nn.Embedding(
+                num_embeddings=config.vocab_size, embedding_dim=config.embedding_dim
+            )
+        else:
+            self.embed = nn.Embedding(
+                num_embeddings=config.vocab_size,
+                embedding_dim=config.embedding_dim,
+                padding_idx=config.pad_token_id,
+            )
 
         self.rnn: nn.RNN | nn.GRU | nn.LSTM
         if config.architecture == "vanilla":

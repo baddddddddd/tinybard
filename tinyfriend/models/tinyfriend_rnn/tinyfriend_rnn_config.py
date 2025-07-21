@@ -10,10 +10,12 @@ class TinyFriendRnnConfig(BaseConfig):
         hidden_size: int,
         num_layers: int,
         dropout: float = 0.0,
+        pad_token_id: int | None = None,
     ):
         self.architecture = architecture
         self.vocab_size = vocab_size
         self.embedding_dim = embedding_dim
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.pad_token_id = pad_token_id
         self.dropout = dropout
