@@ -26,9 +26,11 @@ class TinyStoriesDataset(BaseDataset):
         raw_dataset = datasets.load_dataset("roneneldan/TinyStories", split=split)
 
         def encode(example):
-            sequences = [text + tokenizer.eos_token for text in example["text"]]
+            sequences = example["text"]
             encoded = tokenizer(sequences)
             for i in range(len(encoded)):
+                encoded[i] += tokenizer.eos_token_id
+
                 rem = (len(encoded[i]) - chunk_size) % stride
                 if rem > 1:
                     pad_size = chunk_size - rem + 1
