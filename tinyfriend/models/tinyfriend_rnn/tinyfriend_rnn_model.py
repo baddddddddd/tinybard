@@ -52,8 +52,10 @@ class TinyFriendRnnModule(nn.Module):
 
 
 class TinyFriendRnnModel(BaseModel):
+    config_class = TinyFriendRnnConfig
+
     def __init__(self, config: TinyFriendRnnConfig):
-        super().__init__()
+        super().__init__(config)
         self.module = TinyFriendRnnModule(config)
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
