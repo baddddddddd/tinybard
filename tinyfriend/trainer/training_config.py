@@ -7,6 +7,7 @@ class TrainingConfig:
         output_dir: str,
         num_train_epochs: int,
         learning_rate: float,
+        betas: tuple[float, float],
         weight_decay: float,
         train_batch_size: int,
         label_smoothing: float = 0.0,
@@ -18,6 +19,7 @@ class TrainingConfig:
         self.output_dir = pathlib.Path(output_dir).resolve()
         self.num_train_epochs = num_train_epochs
         self.learning_rate = learning_rate
+        self.betas = betas
         self.weight_decay = weight_decay
         self.train_batch_size = train_batch_size
         self.label_smoothing = label_smoothing

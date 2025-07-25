@@ -44,7 +44,10 @@ class CausalLmTrainer(BaseTrainer):
             shuffle=True,
         )
         self.optimizer = optim.AdamW(
-            model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
+            model.parameters(),
+            lr=args.learning_rate,
+            betas=args.betas,
+            weight_decay=args.weight_decay,
         )
         self.criterion = nn.CrossEntropyLoss(
             ignore_index=self.tokenizer.pad_token_id,
