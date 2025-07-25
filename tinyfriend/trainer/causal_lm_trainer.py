@@ -46,7 +46,10 @@ class CausalLmTrainer(BaseTrainer):
         self.optimizer = optim.AdamW(
             model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
         )
-        self.criterion = nn.CrossEntropyLoss(ignore_index=self.tokenizer.pad_token_id)
+        self.criterion = nn.CrossEntropyLoss(
+            ignore_index=self.tokenizer.pad_token_id,
+            label_smoothing=args.label_smoothing,
+        )
 
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")

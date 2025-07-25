@@ -9,6 +9,7 @@ class TrainingConfig:
         learning_rate: float,
         weight_decay: float,
         train_batch_size: int,
+        label_smoothing: float = 0.0,
         save_strategy: str | None = None,
         save_steps: int | None = None,
         eval_batch_size: int | None = None,
@@ -19,6 +20,7 @@ class TrainingConfig:
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
         self.train_batch_size = train_batch_size
+        self.label_smoothing = label_smoothing
         self.save_strategy = save_strategy
         self.save_steps = save_steps
         self.eval_batch_size = eval_batch_size
