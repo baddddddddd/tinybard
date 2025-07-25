@@ -38,10 +38,15 @@ class BaseTokenizer:
     def __call__(
         self, texts: list[str], return_tensors: str | None = None
     ) -> list[list[int] | torch.Tensor]:
-        encoded = itertools.chain.from_iterable(
-            [self.encode(text, return_tensors=return_tensors) for text in texts]
+        encoded = list(
+            itertools.chain.from_iterable(
+                [self.encode(text, return_tensors=return_tensors) for text in texts]
+            )
         )
-        return list(encoded)
+        if return_tensors == "pt":
+            return torch.stack(encoded)
+        else:
+            return encoded
 
     def _tokenize(self, text: str) -> list[str]:
         raise NotImplementedError("_tokenize() method is not implemented")
