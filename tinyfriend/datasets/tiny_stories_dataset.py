@@ -13,8 +13,11 @@ class TinyStoriesDataset(BaseDataset):
         self,
         split: str,
         tokenizer: BaseTokenizer,
+        **kwargs,
     ):
-        raw_dataset = datasets.load_dataset("roneneldan/TinyStories", split=split)
+        raw_dataset = datasets.load_dataset(
+            "roneneldan/TinyStories", split=split, **kwargs
+        )
 
         def encode(example):
             texts = example["text"]
