@@ -138,7 +138,7 @@ class PositionalEncoding(nn.Module):
 
         encoding[:, 0::2] = torch.sin(encoding[:, 0::2])
         encoding[:, 1::2] = torch.cos(encoding[:, 1::2])
-        self.register_buffer("pe", encoding.unsqueeze(0))
+        self.register_buffer("pe", encoding.unsqueeze(0), persistent=False)
 
         self.dropout = nn.Dropout(p=dropout)
 
