@@ -13,30 +13,17 @@ class TinyStoriesDataset(BaseDataset):
         self,
         split: str,
         tokenizer: BaseTokenizer,
-        chunk_size: int,
-        stride: int | None = None,
     ):
-        if stride is None:
-            stride = chunk_size
-
-        self.tokenizer = tokenizer
-        self.chunk_size = chunk_size
-        self.stride = stride
-
         raw_dataset = datasets.load_dataset("roneneldan/TinyStories", split=split)
 
         def encode(example):
-            sequences = example["text"]
-            encoded = tokenizer(sequences)
-            for i in range(len(encoded)):
-                encoded[i].append(tokenizer.eos_token_id)
-
-                rem = (len(encoded[i]) - chunk_size) % stride
-                if rem > 1:
-                    pad_size = chunk_size - rem + 1
-                    encoded[i] += [tokenizer.pad_token_id] * pad_size
-
+            texts = example["text"]
+            encoded = tokenizer(texts)
             return {"input_ids": encoded}
+
+        if tokenizer.max_length is not None:
+            tokenizer.max_length += 1
+            tokenizer.stride += 1
 
         num_proc = os.cpu_count()
         self.dataset = raw_dataset.map(
@@ -46,24 +33,18 @@ class TinyStoriesDataset(BaseDataset):
             num_proc=num_proc,
         )
 
-        self.idx_to_doc = []
-        for row_idx in range(len(self.dataset)):
-            token_ids = self.dataset[row_idx]["input_ids"]
-            for start_idx in range(0, len(token_ids) - chunk_size, stride):
-                doc = (row_idx, start_idx)
-                self.idx_to_doc.append(doc)
+        if tokenizer.max_length is not None:
+            tokenizer.max_length -= 1
+            tokenizer.stride -= 1
 
     def __len__(self):
-        return len(self.idx_to_doc)
+        return len(self.dataset)
 
     def __getitem__(self, idx):
-        row_idx, start_idx = self.idx_to_doc[idx]
-        row = self.dataset[row_idx]
+        row = self.dataset[idx]
         token_ids = row["input_ids"]
 
-        inputs = torch.LongTensor(token_ids[start_idx : start_idx + self.chunk_size])
-        targets = torch.LongTensor(
-            token_ids[start_idx + 1 : start_idx + 1 + self.chunk_size]
-        )
+        inputs = torch.LongTensor(token_ids[:-1])
+        targets = torch.LongTensor(token_ids[1:])
 
         return inputs, targets
