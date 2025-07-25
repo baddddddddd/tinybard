@@ -156,6 +156,7 @@ class TinyFriendTransformer(nn.Module):
         num_heads: int,
         dim_feedforward: int,
         dropout: float,
+        pad_token_id: int | None = None,
     ):
         super().__init__()
 
@@ -167,7 +168,9 @@ class TinyFriendTransformer(nn.Module):
         self.dropout = dropout
 
         self.embedding = nn.Embedding(
-            num_embeddings=vocab_size, embedding_dim=embed_dim
+            num_embeddings=vocab_size,
+            embedding_dim=embed_dim,
+            padding_idx=pad_token_id,
         )
         self.positional_encoding = PositionalEncoding(
             embed_dim=embed_dim, max_len=max_len, dropout=dropout
@@ -205,6 +208,7 @@ class TinyFriendTransformerModel(BaseModel):
             num_heads=config.num_heads,
             dim_feedforward=config.dim_feedforward,
             dropout=0.1,
+            pad_token_id=config.pad_token_id,
         )
 
     def forward(self, input_ids: torch.Tensor):

@@ -11,6 +11,8 @@ class TinyFriendTransformerConfig(BaseConfig):
         num_heads: int,
         dim_feedforward: int,
         dropout: float,
+        eos_token_id: int | None = None,
+        pad_token_id: int | None = None,
     ):
         self.vocab_size = vocab_size
         self.max_len = max_len
@@ -19,3 +21,5 @@ class TinyFriendTransformerConfig(BaseConfig):
         self.num_heads = num_heads
         self.dim_feedforward = dim_feedforward
         self.dropout = dropout
+        self.eos_token_id = eos_token_id
+        self.pad_token_id = pad_token_id
