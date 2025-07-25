@@ -20,13 +20,15 @@ model_config = TinyFriendTransformerConfig(
     num_heads=8,
     dim_feedforward=512,
     dropout=0.1,
+    eos_token_id=tokenizer.eos_token_id,
+    pad_token_id=tokenizer.pad_token_id,
 )
 
 training_config = TrainingConfig(
     output_dir="./checkpoints/tinyfriend-transformer-3m-char-tinystories",
     num_train_epochs=10,
-    learning_rate=1e-4,
-    betas=(0.9, 0.999),
+    learning_rate=1e-3,
+    betas=(0.9, 0.98),
     weight_decay=1e-3,
     label_smoothing=0.0,
     train_batch_size=64,
