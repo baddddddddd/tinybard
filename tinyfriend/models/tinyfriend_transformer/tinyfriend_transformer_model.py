@@ -7,10 +7,14 @@ import torchinfo
 
 from .tinyfriend_transformer_config import TinyFriendTransformerConfig
 from ..base_model import BaseModel
+from ...utils import BaseStreamer, top_p_sample
 
 
 def scaled_dot_product_attention(
-    query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, is_causal=False
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attention_mask: torch.Tensor,
 ):
     kdim = key.size(-1)
     seq_len = key.size(-2)
@@ -18,12 +22,14 @@ def scaled_dot_product_attention(
 
     attention_scores = query @ key.transpose(-2, -1) * scale_factor
 
-    if is_causal:
-        mask = torch.tril(torch.ones(seq_len, seq_len, device=query.device)).bool()
-        mask = mask.unsqueeze(0).unsqueeze(0)
-        attention_scores = attention_scores.masked_fill(~mask, float("-inf"))
+    causal_mask = torch.tril(torch.ones(seq_len, seq_len, device=query.device)).bool()
+    causal_mask = causal_mask.unsqueeze(0).unsqueeze(0)
 
-    attention_weights = torch.softmax(attention_scores, dim=-1)
+    padding_mask = attention_mask[:, None, None, :].bool()
+    combined_mask = causal_mask & padding_mask
+
+    attention_scores = attention_scores.masked_fill(~combined_mask, float("-inf"))
+    attention_weights = F.softmax(attention_scores, dim=-1)
     output = attention_weights @ value
 
     return output, attention_weights
@@ -49,7 +55,7 @@ class MultiHeadAttention(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        is_causal: bool = False,
+        attention_mask: torch.Tensor,
     ):
         batch_size, seq_len, _ = x.size()
 
@@ -58,7 +64,9 @@ class MultiHeadAttention(nn.Module):
         qkv = qkv.transpose(1, 2)
         q, k, v = qkv.chunk(3, dim=-1)
 
-        values, attention = scaled_dot_product_attention(q, k, v, is_causal=is_causal)
+        values, attention = scaled_dot_product_attention(
+            q, k, v, attention_mask=attention_mask
+        )
         values = values.transpose(1, 2)
         values = values.reshape(batch_size, seq_len, self.embed_dim)
         outputs = self.out_proj(values)
@@ -94,8 +102,8 @@ class TransformerBlock(nn.Module):
         self.ff_dropout = nn.Dropout(p=dropout)
         self.post_ff_norm = nn.LayerNorm(d_model)
 
-    def forward(self, x):
-        attention_output, _ = self.self_attention(x, is_causal=True)
+    def forward(self, x, attention_mask: torch.Tensor):
+        attention_output, _ = self.self_attention(x, attention_mask=attention_mask)
         x = self.post_attention_norm(x + self.attention_dropout(attention_output))
 
         ff_output = self.feed_forward(x)
@@ -115,15 +123,16 @@ class TransformerStack(nn.Module):
     ):
         super().__init__()
 
-        self.stack = nn.Sequential(
-            *[
+        self.stack = nn.ModuleList(
+            [
                 TransformerBlock(d_model, nhead, dim_feedforward, dropout)
                 for _ in range(num_layers)
             ]
         )
 
-    def forward(self, x):
-        x = self.stack(x)
+    def forward(self, x, attention_mask: torch.Tensor):
+        for layer in self.stack:
+            x = layer(x, attention_mask=attention_mask)
         return x
 
 
@@ -186,9 +195,11 @@ class TinyFriendTransformer(nn.Module):
         self.embedding_scale_factor = math.sqrt(embed_dim)
 
     def forward(self, input_ids):
+        attention_mask = (input_ids != self.embedding.padding_idx).to(input_ids.device)
+
         x = self.embedding(input_ids) * self.embedding_scale_factor
         x = self.positional_encoding(x)
-        x = self.transformer(x)
+        x = self.transformer(x, attention_mask)
 
         logits = x @ self.embedding.weight.T
         return logits
