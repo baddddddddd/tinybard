@@ -6,7 +6,7 @@ from tinyfriend.tokenizers import StrippedAsciiTokenizer
 from tinyfriend.trainer import CausalLmTrainer, TrainingConfig
 
 
-seq_len = 512
+seq_len = 256
 
 tokenizer = StrippedAsciiTokenizer(
     max_length=seq_len, padding=True, return_overflowing_tokens=True
@@ -25,12 +25,12 @@ model_config = TinyFriendTransformerConfig(
 training_config = TrainingConfig(
     output_dir="./checkpoints/tinyfriend-transformer-3m-char-tinystories",
     num_train_epochs=10,
-    learning_rate=3e-4,
-    betas=(0.9, 0.98),
-    weight_decay=0.01,
+    learning_rate=1e-4,
+    betas=(0.9, 0.999),
+    weight_decay=1e-3,
     label_smoothing=0.0,
-    train_batch_size=32,
-    save_steps=1,
+    train_batch_size=64,
+    save_steps=100,
 )
 
 model = TinyFriendTransformerModel(model_config)
