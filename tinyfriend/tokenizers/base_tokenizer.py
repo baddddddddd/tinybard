@@ -62,7 +62,7 @@ class BaseTokenizer:
         full_tokens.append(self.eos_token)
 
         if self.max_length is None:
-            return [tokens]
+            return [full_tokens]
 
         res = []
         for i in range(
