@@ -1,3 +1,4 @@
+import itertools
 import re
 import string
 
@@ -5,11 +6,22 @@ import torch
 
 
 class BaseTokenizer:
-    def __init__(self):
+    def __init__(
+        self,
+        max_length: int | None = None,
+        padding: bool = False,
+        return_overflowing_tokens: bool = False,
+        stride: int = 0,
+    ):
         self.vocab = {}
         self.unk_token = ""
         self.eos_token = ""
         self.pad_token = ""
+
+        self.max_length = max_length
+        self.padding = padding
+        self.return_overflowing_tokens = return_overflowing_tokens
+        self.stride = stride
 
     @property
     def unk_token_id(self):
@@ -26,8 +38,10 @@ class BaseTokenizer:
     def __call__(
         self, texts: list[str], return_tensors: str | None = None
     ) -> list[list[int] | torch.Tensor]:
-        encoded = [self.encode(text, return_tensors=return_tensors) for text in texts]
-        return encoded
+        encoded = itertools.chain.from_iterable(
+            [self.encode(text, return_tensors=return_tensors) for text in texts]
+        )
+        return list(encoded)
 
     def _tokenize(self, text: str) -> list[str]:
         raise NotImplementedError("_tokenize() method is not implemented")
@@ -43,12 +57,35 @@ class BaseTokenizer:
             "_convert_tokens_to_string() method is not implemented"
         )
 
-    def tokenize(self, text: str) -> list[str]:
-        return self._tokenize(text)
+    def tokenize(self, text: str) -> list[list[str]]:
+        full_tokens = self._tokenize(text)
+        full_tokens.append(self.eos_token)
 
-    def convert_tokens_to_ids(self, tokens: list[str]) -> list[int]:
-        ids = [self._convert_token_to_id(token) for token in tokens]
-        return ids
+        if self.max_length is None:
+            return [tokens]
+
+        res = []
+        for i in range(
+            0,
+            len(full_tokens) if self.return_overflowing_tokens else 1,
+            self.max_length - self.stride,
+        ):
+            tokens = full_tokens[i : i + self.max_length]
+            res.append(tokens)
+
+        if self.padding:
+            pads = [self.pad_token] * (self.max_length - len(res[-1]))
+            res[-1] += pads
+
+        return res
+
+    def convert_tokens_to_ids(self, tokens_list: list[list[str]]) -> list[list[int]]:
+        res = []
+        for tokens in tokens_list:
+            ids = [self._convert_token_to_id(token) for token in tokens]
+            res.append(ids)
+
+        return res
 
     def convert_ids_to_tokens(self, ids: list[int] | torch.Tensor) -> list[str]:
         tokens = [self._convert_id_to_token(id_) for id_ in ids]

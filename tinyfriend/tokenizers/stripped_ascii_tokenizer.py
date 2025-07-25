@@ -26,7 +26,15 @@ class StrippedAsciiTokenizer(BaseTokenizer):
         }
     )
 
-    def __init__(self):
+    def __init__(
+        self,
+        max_length: int | None = None,
+        padding: bool = False,
+        return_overflowing_tokens: bool = False,
+        stride: int = 0,
+    ):
+        super().__init__(max_length, padding, return_overflowing_tokens, stride)
+
         self.charset = string.digits + string.ascii_letters + string.punctuation
         self.whitespace = " \n\t"
         self.unk_token = "\x00"
